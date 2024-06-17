@@ -1,8 +1,10 @@
 import time as timer
 import heapq
 import random
+import numpy as np
 
 from a_star_class import A_Star, get_location, get_sum_of_cost, compute_heuristics
+
 
 def detect_collision(path1, path2):
     ##############################
@@ -11,20 +13,19 @@ def detect_collision(path1, path2):
     #           A vertex collision occurs if both robots occupy the same location at the same timestep
     #           An edge collision occurs if the robots swap their location at the same timestep.
     #           You should use "get_location(path, t)" to get the location of a robot at time t.
-    t_range = max(len(path1),len(path2))
+    t_range = max(len(path1), len(path2))
     for t in range(t_range):
-        loc_c1 =get_location(path1,t)
-        loc_c2 = get_location(path2,t)
-        loc1 = get_location(path1,t+1)
-        loc2 = get_location(path2,t+1)
+        loc_c1 = get_location(path1, t)
+        loc_c2 = get_location(path2, t)
+        loc1 = get_location(path1, t + 1)
+        loc2 = get_location(path2, t + 1)
         # vertex collision
         if loc1 == loc2:
-            return [loc1],t
+            return [loc1], t
         # edge collision
-        if[loc_c1,loc1] ==[loc2,loc_c2]:
-            return [loc2,loc_c2],t
-        
-       
+        if [loc_c1, loc1] == [loc2, loc_c2]:
+            return [loc2, loc_c2], t
+
     return None
 
 
@@ -34,15 +35,14 @@ def detect_collisions(paths):
     #           A collision can be represented as dictionary that contains the id of the two robots, the vertex or edge
     #           causing the collision, and the timestep at which the collision occurred.
     #           You should use your detect_collision function to find a collision between two robots.
-    collisions =[]
-    for i in range(len(paths)-1):
-        for j in range(i+1,len(paths)):
-            if detect_collision(paths[i],paths[j]) !=None:
-                position,t = detect_collision(paths[i],paths[j])
-                collisions.append({'a1':i,
-                                'a2':j,
-                                'loc':position,
-                                'timestep':t+1})
+    collisions = []
+    for i in range(len(paths) - 1):
+        for j in range(i + 1, len(paths)):
+            if detect_collision(paths[i], paths[j]) != None:
+                position, t = detect_collision(paths[i], paths[j])
+                collisions.append(
+                    {"a1": i, "a2": j, "loc": position, "timestep": t + 1}
+                )
     return collisions
 
 
@@ -56,29 +56,42 @@ def standard_splitting(collision):
     #                          specified timestep, and the second constraint prevents the second agent to traverse the
     #                          specified edge at the specified timestep
     constraints = []
-    if len(collision['loc'])==1:
-        constraints.append({'agent':collision['a1'],
-                            'loc':collision['loc'],
-                            'timestep':collision['timestep'],
-                            'positive':False
-                            })
-        constraints.append({'agent':collision['a2'],
-                            'loc':collision['loc'],
-                            'timestep':collision['timestep'],
-                            'positive':False
-                            })
+    if len(collision["loc"]) == 1:
+        constraints.append(
+            {
+                "agent": collision["a1"],
+                "loc": collision["loc"],
+                "timestep": collision["timestep"],
+                "positive": False,
+            }
+        )
+        constraints.append(
+            {
+                "agent": collision["a2"],
+                "loc": collision["loc"],
+                "timestep": collision["timestep"],
+                "positive": False,
+            }
+        )
     else:
-        constraints.append({'agent':collision['a1'],
-                            'loc':[collision['loc'][0],collision['loc'][1]],
-                            'timestep':collision['timestep'],
-                            'positive':False
-                            })
-        constraints.append({'agent':collision['a2'],
-                            'loc':[collision['loc'][1],collision['loc'][0]],
-                            'timestep':collision['timestep'],
-                            'positive':False
-                            })
+        constraints.append(
+            {
+                "agent": collision["a1"],
+                "loc": [collision["loc"][0], collision["loc"][1]],
+                "timestep": collision["timestep"],
+                "positive": False,
+            }
+        )
+        constraints.append(
+            {
+                "agent": collision["a2"],
+                "loc": [collision["loc"][1], collision["loc"][0]],
+                "timestep": collision["timestep"],
+                "positive": False,
+            }
+        )
     return constraints
+
 
 def disjoint_splitting(collision):
     ##############################
@@ -91,58 +104,80 @@ def disjoint_splitting(collision):
     #                          specified edge at the specified timestep
     #           Choose the agent randomly
     constraints = []
-    agent = random.randint(0,1)
-    a = 'a'+str(agent +1)
-    if len(collision['loc'])==1:
-        constraints.append({'agent':collision[a],
-                            'loc':collision['loc'],
-                            'timestep':collision['timestep'],
-                            'positive':True
-                            })
-        constraints.append({'agent':collision[a],
-                            'loc':collision['loc'],
-                            'timestep':collision['timestep'],
-                            'positive':False
-                            })
+    agent = random.randint(0, 1)
+    a = "a" + str(agent + 1)
+    if len(collision["loc"]) == 1:
+        constraints.append(
+            {
+                "agent": collision[a],
+                "loc": collision["loc"],
+                "timestep": collision["timestep"],
+                "positive": True,
+            }
+        )
+        constraints.append(
+            {
+                "agent": collision[a],
+                "loc": collision["loc"],
+                "timestep": collision["timestep"],
+                "positive": False,
+            }
+        )
     else:
-        if agent ==0:
-            constraints.append({'agent':collision[a],
-                                'loc':[collision['loc'][0],collision['loc'][1]],
-                                'timestep':collision['timestep'],
-                                'positive':True
-                                })
-            constraints.append({'agent':collision[a],
-                                'loc':[collision['loc'][0],collision['loc'][1]],
-                                'timestep':collision['timestep'],
-                                'positive':False
-                                })
+        if agent == 0:
+            constraints.append(
+                {
+                    "agent": collision[a],
+                    "loc": [collision["loc"][0], collision["loc"][1]],
+                    "timestep": collision["timestep"],
+                    "positive": True,
+                }
+            )
+            constraints.append(
+                {
+                    "agent": collision[a],
+                    "loc": [collision["loc"][0], collision["loc"][1]],
+                    "timestep": collision["timestep"],
+                    "positive": False,
+                }
+            )
         else:
-            constraints.append({'agent':collision[a],
-                                'loc':[collision['loc'][1],collision['loc'][0]],
-                                'timestep':collision['timestep'],
-                                'positive':True
-                                })
-            constraints.append({'agent':collision[a],
-                                'loc':[collision['loc'][1],collision['loc'][0]],
-                                'timestep':collision['timestep'],
-                                'positive':False
-                                })
+            constraints.append(
+                {
+                    "agent": collision[a],
+                    "loc": [collision["loc"][1], collision["loc"][0]],
+                    "timestep": collision["timestep"],
+                    "positive": True,
+                }
+            )
+            constraints.append(
+                {
+                    "agent": collision[a],
+                    "loc": [collision["loc"][1], collision["loc"][0]],
+                    "timestep": collision["timestep"],
+                    "positive": False,
+                }
+            )
     return constraints
 
+
 def paths_violate_constraint(constraint, paths):
-    assert constraint['positive'] is True
+    assert constraint["positive"] is True
     rst = []
     for i in range(len(paths)):
-        if i == constraint['agent']:
+        if i == constraint["agent"]:
             continue
-        curr = get_location(paths[i], constraint['timestep'])
-        prev = get_location(paths[i], constraint['timestep'] - 1)
-        if len(constraint['loc']) == 1:  # vertex constraint
-            if constraint['loc'][0] == curr:
+        curr = get_location(paths[i], constraint["timestep"])
+        prev = get_location(paths[i], constraint["timestep"] - 1)
+        if len(constraint["loc"]) == 1:  # vertex constraint
+            if constraint["loc"][0] == curr:
                 rst.append(i)
         else:  # edge constraint
-            if constraint['loc'][0] == prev or constraint['loc'][1] == curr \
-                    or constraint['loc'] == [curr, prev]:
+            if (
+                constraint["loc"][0] == prev
+                or constraint["loc"][1] == curr
+                or constraint["loc"] == [curr, prev]
+            ):
                 rst.append(i)
     return rst
 
@@ -150,7 +185,7 @@ def paths_violate_constraint(constraint, paths):
 class CBSSolver(object):
     """The high-level search of CBS."""
 
-    def __init__(self, my_map, starts, goals):
+    def __init__(self, my_map, starts, goals, randomness="random", collision_map=None):
         """my_map   - list of lists specifying obstacle positions
         starts      - [(x1, y1), (x2, y2), ...] list of start locations
         goals       - [(x1, y1), (x2, y2), ...] list of goal locations
@@ -160,6 +195,8 @@ class CBSSolver(object):
         self.starts = starts
         self.goals = goals
         self.num_of_agents = len(goals)
+        self.randomness = randomness
+        self.collision_map = collision_map
 
         self.num_of_generated = 0
         self.num_of_expanded = 0
@@ -168,12 +205,24 @@ class CBSSolver(object):
         self.open_list = []
 
         # compute heuristics for the low-level search
-        self.heuristics = []
-        for goal in self.goals:
-            self.heuristics.append(compute_heuristics(my_map, goal))
+        # heuristics_intial
+        if self.randomness == "random":
+            self.heuristics_initial = []
+            for goal in self.goals:
+                self.heuristics_initial.append(compute_heuristics(my_map, goal))
+            # list to numpy
+            self.heuristics_initial = np.array(self.heuristics_initial)
+        else:
+            self.heuristics = []
+            for goal in self.goals:
+                self.heuristics.append(compute_heuristics(my_map, goal))
+            self.heuristics = np.array(self.heuristics)
 
     def push_node(self, node):
-        heapq.heappush(self.open_list, (node['cost'], len(node['collisions']), self.num_of_generated, node))
+        heapq.heappush(
+            self.open_list,
+            (node["cost"], len(node["collisions"]), self.num_of_generated, node),
+        )
         # print("Generate node {}".format(self.num_of_generated))
         self.num_of_generated += 1
 
@@ -183,15 +232,14 @@ class CBSSolver(object):
         self.num_of_expanded += 1
         return node
 
-
     def find_solution(self, disjoint):
-        """ Finds paths for all agents from their start locations to their goal locations
+        """Finds paths for all agents from their start locations to their goal locations
 
         disjoint         - use disjoint splitting or not
         """
 
         self.start_time = timer.time()
-        
+
         if disjoint:
             splitter = disjoint_splitting
         else:
@@ -206,24 +254,62 @@ class CBSSolver(object):
         # paths         - list of paths, one for each agent
         #               [[(x11, y11), (x12, y12), ...], [(x21, y21), (x22, y22), ...], ...]
         # collisions     - list of collisions in paths
-        root = {'cost': 0,
-                'constraints': [],
-                'paths': [],
-                'collisions': []}
+        root = {"cost": 0, "constraints": [], "paths": [], "collisions": []}
+        import time
 
+        # self.collision_map = None
+        time1 = time.time()
+        if self.randomness == "random":
+            if self.collision_map is not None:
+                random_plus = np.random.rand(*self.heuristics_initial.shape)
+
+                self.collision_map = np.floor(self.collision_map * 20) / 20
+                heuristics_plus = self.collision_map * 0.8 + random_plus * 0.2
+                # cutoff = int(
+                #     0.5 * self.heuristics_initial.shape[0]
+                # )  # 0 : 0% randomness, 1: 100% randomness
+
+                # heuristics_plus[cutoff:] = 0
+                randomness = 1.0  # 0: no randomness, 1: 100% randomness
+                cutoff_ratio = 1 - randomness
+                cutoff = int(cutoff_ratio * self.heuristics_initial.shape[0])
+                indices = np.random.choice(
+                    self.heuristics_initial.shape[0], cutoff, replace=False
+                )
+                heuristics_plus[indices] = 0
+
+                self.heuristics = self.heuristics_initial + heuristics_plus
+            else:
+                random_plus = np.random.rand(*self.heuristics_initial.shape)
+                cutoff = int(
+                    1.0 * self.heuristics_initial.shape[0]
+                )  # 0 : 0% randomness, 1: 100% randomness
+                random_plus[cutoff:] = 0
+                self.heuristics = self.heuristics_initial + random_plus
+
+            # self.heuristics = self.heuristics_initial + np.random.rand(
+            #     *self.heuristics_initial.shape
+            # )
+        print("Time to randomize heuristics: ", time.time() - time1)
         for i in range(self.num_of_agents):  # Find initial path for each agent
-            astar = AStar(self.my_map, self.starts, self.goals, self.heuristics,i, root['constraints'])
+            astar = AStar(
+                self.my_map,
+                self.starts,
+                self.goals,
+                self.heuristics,
+                i,
+                root["constraints"],
+            )
             path = astar.find_paths()
 
             if path is None:
-                raise BaseException('No solutions')
-            root['paths'].append(path[0])
+                raise BaseException("No solutions")
+            root["paths"].append(path[0])
 
-        root['cost'] = get_sum_of_cost(root['paths'])
-        root['collisions'] = detect_collisions(root['paths'])
+        root["cost"] = get_sum_of_cost(root["paths"])
+        root["collisions"] = detect_collisions(root["paths"])
+        print("collision: ", root["collisions"])
         self.push_node(root)
-
-
 
         ##############################
         # Task 3.3: High-Level Search
@@ -233,66 +319,106 @@ class CBSSolver(object):
         #             3. Otherwise, choose the first collision and convert to a list of constraints (using your
         #                standard_splitting function). Add a new child node to your open list for each constraint
         #           Ensure to create a copy of any objects that your child nodes might inherit
-        
+
         while len(self.open_list) > 0:
             # if self.num_of_generated > 50000:
             #     print('reached maximum number of nodes. Returning...')
             #     return None
+
             p = self.pop_node()
-            if p['collisions'] == []:
+            if p["collisions"] == []:
                 self.print_results(p)
-                for pa in p['paths']:
+                for pa in p["paths"]:
                     print(pa)
-                return p['paths'], self.num_of_generated, self.num_of_expanded # number of nodes generated/expanded for comparing implementations
-            collision = p['collisions'].pop(0)
+                return (
+                    p["paths"],
+                    self.num_of_generated,
+                    self.num_of_expanded,
+                )  # number of nodes generated/expanded for comparing implementations
+            collision = p["collisions"].pop(0)
             # constraints = standard_splitting(collision)
             # constraints = disjoint_splitting(collision)
             constraints = splitter(collision)
-
+            # if self.randomness == "random":
+            #     self.heuristics = self.heuristics_initial + np.random.rand(
+            #         *self.heuristics_initial.shape
+            #     )
             for constraint in constraints:
-                q = {'cost':0,
-                    'constraints': [constraint],
-                    'paths':[],
-                    'collisions':[]
+
+                # # heuristic의 키 수와 같은 수의 난수를 생성합니다.
+                # num_heuristics = len(self.heuristics_initial)
+                # random_values = np.random.uniform(0, 1, size=num_heuristics)
+
+                # self.heuristics = []
+                # for idx, heuristic in enumerate(self.heuristics_initial):
+                #     randomized_heuristic = {
+                #         key: value + random_values[idx]
+                #         for key, value in heuristic.items()
+                #     }
+                #     self.heuristics.append(randomized_heuristic)
+                q = {
+                    "cost": 0,
+                    "constraints": [constraint],
+                    "paths": [],
+                    "collisions": [],
                 }
-                for c in p['constraints']:
-                    if c not in q['constraints']:
-                        q['constraints'].append(c)
-                for pa in p['paths']:
-                    q['paths'].append(pa)
-                
-                ai = constraint['agent']
-                astar = AStar(self.my_map,self.starts, self.goals,self.heuristics,ai,q['constraints'])
+                for c in p["constraints"]:
+                    if c not in q["constraints"]:
+                        q["constraints"].append(c)
+                for pa in p["paths"]:
+                    q["paths"].append(pa)
+
+                ai = constraint["agent"]
+
+                # if self.randomness == "random":
+                #     self.heuristics = self.heuristics_initial + np.random.rand(
+                #         *self.heuristics_initial.shape
+                #     )
+                astar = AStar(
+                    self.my_map,
+                    self.starts,
+                    self.goals,
+                    self.heuristics,
+                    ai,
+                    q["constraints"],
+                )
                 path = astar.find_paths()
 
                 if path is not None:
-                    q['paths'][ai]= path[0]
+                    q["paths"][ai] = path[0]
                     # task 4
                     continue_flag = False
-                    if constraint['positive']:
-                        vol = paths_violate_constraint(constraint,q['paths'])
+                    if constraint["positive"]:
+                        vol = paths_violate_constraint(constraint, q["paths"])
                         for v in vol:
-                            astar_v = AStar(self.my_map,self.starts, self.goals,self.heuristics,v,q['constraints'])
+                            astar_v = AStar(
+                                self.my_map,
+                                self.starts,
+                                self.goals,
+                                self.heuristics,
+                                v,
+                                q["constraints"],
+                            )
                             path_v = astar_v.find_paths()
-                            if path_v  is None:
-                                continue_flag =True
+                            if path_v is None:
+                                continue_flag = True
                             else:
-                                q['paths'][v] = path_v[0]
+                                q["paths"][v] = path_v[0]
                         if continue_flag:
                             continue
-                    q['collisions'] = detect_collisions(q['paths'])
-                    q['cost'] = get_sum_of_cost(q['paths'])
-                    self.push_node(q)     
+                    q["collisions"] = detect_collisions(q["paths"])
+                    q["cost"] = get_sum_of_cost(q["paths"])
+                    self.push_node(q)
         return None
 
     def print_results(self, node):
         print("\n Found a solution! \n")
         CPU_time = timer.time() - self.start_time
         print("CPU time (s):    {:.2f}".format(CPU_time))
-        print("Sum of costs:    {}".format(get_sum_of_cost(node['paths'])))
+        print("Sum of costs:    {}".format(get_sum_of_cost(node["paths"])))
         print("Expanded nodes:  {}".format(self.num_of_expanded))
         print("Generated nodes: {}".format(self.num_of_generated))
 
         print("Solution:")
-        for i in range(len(node['paths'])):
-            print("agent", i, ": ", node['paths'][i])
+        for i in range(len(node["paths"])):
+            print("agent", i, ": ", node["paths"][i])

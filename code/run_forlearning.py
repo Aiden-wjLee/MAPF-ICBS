@@ -7,20 +7,14 @@ from cbs_basic import CBSSolver  # original cbs with standard/disjoint splitting
 # cbs with different improvements
 from icbs_cardinal_bypass import ICBS_CB_Solver  # only cardinal dectection and bypass
 from icbs_complete import ICBS_Solver  # all improvements including MA-CBS
-
+from CollisionMap import CollisionMap
 
 from independent import IndependentSolver
 from prioritized import PrioritizedPlanningSolver
 from visualize import Animation
 from single_agent_planner import get_sum_of_cost
 
-HLSOLVER = "ICBS"
-
-LLSOLVER = "a_star"
-
-INSTANCE = (
-    "/mnt/Topics/Learning/MAPF/LocalHeuristics/MAPF-ICBS/code/instances/test_a40.txt"
-)
+import time
 
 
 def print_mapf_instance(my_map, starts, goals):
@@ -63,7 +57,7 @@ def import_mapf_instance(filename):
         line = f.readline()
         my_map.append([])
         for cell in line:
-            if cell == "@":
+            if cell == "@" or cell == "T":
                 my_map[-1].append(True)
             elif cell == ".":
                 my_map[-1].append(False)
@@ -82,7 +76,7 @@ def import_mapf_instance(filename):
     return my_map, starts, goals
 
 
-if __name__ == "__main__":
+def get_parser():
     parser = argparse.ArgumentParser(description="Runs various MAPF algorithms")
     parser.add_argument(
         "--instance",
@@ -109,25 +103,43 @@ if __name__ == "__main__":
         help="The solver to use (one of: {CBS,ICBS_CB,ICBS}), defaults to "
         + str(HLSOLVER),
     )
+    parser.add_argument(
+        "--randomness",
+        type=str,
+        default="random",
+        help="The randomness of the HL solver (one of: {random,biased}), defaults to random",
+    )
     # parser.add_argument('--llsolver', type=str, default=LLSOLVER,
     #                     help='The solver to use (one of: {a_star,pea_star,epea_star}), defaults to ' + str(LLSOLVER))
+    return parser
 
-    args = parser.parse_args()
 
+def main(args):
     txt_file_name = args.instance.split("/")[-1].split(".")[0]
-    result_file = open(f"results_for_{txt_file_name}.csv", "w", buffering=1)
+    result_file = open(
+        f"/mnt/Topics/Learning/MAPF/LocalHeuristics/MAPF-ICBS/code/test_results/ \
+results_for_{txt_file_name}_{args.randomness}.txt",
+        "a",
+        buffering=1,
+    )
+    # result_file = open("results.csv", "w", buffering=1)
 
     # node_results_file = open("nodes-cleaned.csv", "w", buffering=1)
 
-    nodes_gen_file = open("nodes-gen-cleaned.csv", "w", buffering=1)
-    nodes_exp_file = open("nodes-exp-cleaned.csv", "w", buffering=1)
+    nodes_gen_file_name = f"/mnt/Topics/Learning/MAPF/LocalHeuristics/MAPF-ICBS/code/test_results/ \
+nodes_gen_for_{txt_file_name}_{args.randomness}.csv"
+    nodes_exp_file_name = f"/mnt/Topics/Learning/MAPF/LocalHeuristics/MAPF-ICBS/code/test_results/ \
+nodes_exp_for_{txt_file_name}_{args.randomness}.csv"
+    nodes_gen_file = open(nodes_gen_file_name, "w", buffering=1)
+    nodes_exp_file = open(nodes_exp_file_name, "w", buffering=1)
 
-    if args.batch:
+    # if args.batch:
 
-        input_instance = sorted(glob.glob("instances/test*"))
-    else:
-        input_instance = sorted(glob.glob(args.instance))
-
+    #     input_instance = sorted(glob.glob("instances/test*"))
+    # else:
+    input_instance = sorted(glob.glob(args.instance))
+    if len(input_instance) == 0:
+        raise BaseException(f"{INSTANCE} does not exist.")
     for file in input_instance:
 
         print("***Import an instance***")
@@ -138,7 +150,11 @@ if __name__ == "__main__":
 
         if args.hlsolver == "CBS":
             print("***Run CBS***")
-            cbs = CBSSolver(my_map, starts, goals)
+            collision_map = CollisionMap(
+                my_map, starts, goals, agent_num, 1.3
+            ).get_collision_map()
+
+            cbs = CBSSolver(my_map, starts, goals, args.randomness, collision_map)
             # solution = cbs.find_solution(args.disjoint)
 
             # if solution is not None:
@@ -148,33 +164,9 @@ if __name__ == "__main__":
             #         raise BaseException('No solutions')
             # else:
             #     raise BaseException('No solutions')
-
-        elif args.hlsolver == "ICBS_CB":
-            print("***Run ICBS with CB***")
-            cbs = ICBS_CB_Solver(my_map, starts, goals)
-
         elif args.hlsolver == "ICBS":
             print("***Run ICBS***")
             cbs = ICBS_Solver(my_map, starts, goals)
-            # solution = cbs.find_solution(args.disjoint)
-
-            # if solution is not None:
-            #     # print(solution)
-            #     paths, nodes_gen, nodes_exp = [solution[i] for i in range(3)]
-            #     if paths is None:
-            #         raise BaseException('No solutions')
-            # else:
-            #     raise BaseException('No solutions')
-
-        # elif args.solver == "Independent":
-        #     print("***Run Independent***")
-        #     solver = IndependentSolver(my_map, starts, goals)
-        #     paths, nodes_gen, nodes_exp = solver.find_solution()
-        # elif args.solver == "Prioritized":
-        #     print("***Run Prioritized***")
-        #     solver = PrioritizedPlanningSolver(my_map, starts, goals)
-        #     paths, nodes_gen, nodes_exp = solver.find_solution()
-
         else:
             raise RuntimeError("Unknown solver!")
 
@@ -189,7 +181,11 @@ if __name__ == "__main__":
             raise BaseException("No solutions")
 
         cost = get_sum_of_cost(paths)
-        result_file.write("{},{}\n".format(file, cost))
+        result_file.write(
+            "file{}, \ncost: {} nodes_gen: {} nodes_exp: {}\n".format(
+                file, cost, nodes_gen, nodes_exp
+            )
+        )
 
         nodes_gen_file.write("{},{}\n".format(file, nodes_gen))
         nodes_exp_file.write("{},{}\n".format(file, nodes_exp))
@@ -202,3 +198,40 @@ if __name__ == "__main__":
             # animation.save('demo/fig.gif', 1)
 
     result_file.close()
+
+
+if __name__ == "__main__":
+    HLSOLVER = "CBS"
+    LLSOLVER = "a_star"
+
+    # map_name = "random-32-32-10"
+    # map_name = "random-32-32-20"
+    map_name = "random-64-64-10"
+    # map_name = "Boston_0_256"
+    cost_of_map = 0  # 1906  # 0: normal, <0 : cost of map
+
+    agent_num = 60
+
+    INSTANCE = f"/mnt/Topics/Learning/MAPF/LocalHeuristics/MAPF-ICBS/code/instances/test_a{agent_num}.txt"
+    INSTANCE = f"/mnt/Topics/Learning/MAPF/LocalHeuristics/MAPF-ICBS/code/instances/test_{map_name}_a{agent_num}.txt"
+    if cost_of_map > 0:
+        INSTANCE = f"/mnt/Topics/Learning/MAPF/LocalHeuristics/MAPF-ICBS/code/instances/test_{map_name}_a{agent_num}_c{cost_of_map}.txt"
+
+    parser = get_parser()
+    args = parser.parse_args()
+    args.batch = True  # simulation True: Simx
+    args.randomness = "random"
+
+    start_time = time.time()
+    main(args)
+    end_time = time.time()
+    print(f"{args.randomness}에서 소요 시간:", end_time - start_time, "초")
+
+    txt_file_name = args.instance.split("/")[-1].split(".")[0]
+    result_file = open(
+        f"/mnt/Topics/Learning/MAPF/LocalHeuristics/MAPF-ICBS/code/test_results/ \
+results_for_{txt_file_name}_{args.randomness}.txt",
+        "a",
+        buffering=1,
+    )
+    result_file.write("소요 시간: {} 초\n\n".format(end_time - start_time))

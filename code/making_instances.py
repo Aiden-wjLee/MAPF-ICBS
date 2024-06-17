@@ -38,7 +38,7 @@ def generate_agent_tasks(map_data, num_agents):
         empty_cells.remove(goal)
         used_cells.add(goal)
 
-        tasks.append(f"{start[1]} {start[0]} {goal[1]} {goal[0]}")  # x, y format
+        tasks.append(f"{start[0]} {start[1]} {goal[0]} {goal[1]}")  # y, x format
 
     return tasks
 
@@ -71,10 +71,13 @@ def main(input_file_name, output_file_name, num_agents):
 
 if __name__ == "__main__":
     input_file_name = (
-        "/mnt/Topics/Learning/MAPF/LocalHeuristics/map/random-32-32-10.map"
+        # "/mnt/Topics/Learning/MAPF/LocalHeuristics/map/random-32-32-10.map"
+        "/mnt/Topics/Learning/MAPF/LocalHeuristics/map/random-64-64-10.map"
+        # "/mnt/Topics/Learning/MAPF/LocalHeuristics/map/random-32-32-20.map"
+        # "/mnt/Topics/Learning/MAPF/LocalHeuristics/map/Boston_0_256.map"
     )
-    output_file_name = (
-        "/mnt/Topics/Learning/MAPF/LocalHeuristics/MAPF-ICBS/code/instances/test1.txt"
-    )
-    num_agents = 5
+    num_agents = 40
+    map_name = input_file_name.split("/")[-1].split(".")[0]
+    output_file_name = f"/mnt/Topics/Learning/MAPF/LocalHeuristics/MAPF-ICBS/code/instances/test_{map_name}_a{num_agents}.txt"
+
     main(input_file_name, output_file_name, num_agents)

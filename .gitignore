@@ -4,3 +4,5 @@ code/results.csv
 .vscode/*
 test*
 *csv
+*.txt
+model
