@@ -185,7 +185,14 @@ def paths_violate_constraint(constraint, paths):
 class CBSSolver(object):
     """The high-level search of CBS."""
 
-    def __init__(self, my_map, starts, goals, randomness="random", collision_map=None):
+    def __init__(
+        self,
+        my_map,
+        starts,
+        goals,
+        h_prime_TF=True,
+        h_prime_map=None,
+    ):
         """my_map   - list of lists specifying obstacle positions
         starts      - [(x1, y1), (x2, y2), ...] list of start locations
         goals       - [(x1, y1), (x2, y2), ...] list of goal locations
@@ -195,8 +202,8 @@ class CBSSolver(object):
         self.starts = starts
         self.goals = goals
         self.num_of_agents = len(goals)
-        self.randomness = randomness
-        self.collision_map = collision_map
+        self.h_prime_TF = h_prime_TF
+        self.h_prime_map = h_prime_map
 
         self.num_of_generated = 0
         self.num_of_expanded = 0
@@ -206,7 +213,7 @@ class CBSSolver(object):
 
         # compute heuristics for the low-level search
         # heuristics_intial
-        if self.randomness == "random":
+        if self.h_prime_TF:
             self.heuristics_initial = []
             for goal in self.goals:
                 self.heuristics_initial.append(compute_heuristics(my_map, goal))
@@ -259,37 +266,46 @@ class CBSSolver(object):
 
         # self.collision_map = None
         time1 = time.time()
-        if self.randomness == "random":
-            if self.collision_map is not None:
-                random_plus = np.random.rand(*self.heuristics_initial.shape)
+        if self.h_prime_TF:
+            self.heuristics = self.heuristics_initial + self.h_prime_map
+            # if self.h_prime_map is not None:
+            #     random_plus = np.random.rand(*self.heuristics_initial.shape)
 
-                self.collision_map = np.floor(self.collision_map * 20) / 20
-                heuristics_plus = self.collision_map * 0.8 + random_plus * 0.2
-                # cutoff = int(
-                #     0.5 * self.heuristics_initial.shape[0]
-                # )  # 0 : 0% randomness, 1: 100% randomness
+            #     # self.collision_map = np.floor(self.collision_map * 40) / 40
 
-                # heuristics_plus[cutoff:] = 0
-                randomness = 1.0  # 0: no randomness, 1: 100% randomness
-                cutoff_ratio = 1 - randomness
-                cutoff = int(cutoff_ratio * self.heuristics_initial.shape[0])
-                indices = np.random.choice(
-                    self.heuristics_initial.shape[0], cutoff, replace=False
-                )
-                heuristics_plus[indices] = 0
+            #     # heuristics_plus = self.collision_map * 0.6 + random_plus * 0.4
+            #     # heuristics_plus = (
+            #     #     self.collision_map * 0.6 + self.collision_std_map * 0.4
+            #     # )
+            #     heuristics_plus = self.h_prime_map
+            #     heuristics_plus /= np.max(heuristics_plus)
+            #     print("np.unique(heuristics_plus): ", np.unique(heuristics_plus))
+            #     print("num of unique: ", len(np.unique(heuristics_plus)))
+            #     # cutoff = int(
+            #     #     0.5 * self.heuristics_initial.shape[0]
+            #     # )  # 0 : 0% randomness, 1: 100% randomness
 
-                self.heuristics = self.heuristics_initial + heuristics_plus
-            else:
-                random_plus = np.random.rand(*self.heuristics_initial.shape)
-                cutoff = int(
-                    1.0 * self.heuristics_initial.shape[0]
-                )  # 0 : 0% randomness, 1: 100% randomness
-                random_plus[cutoff:] = 0
-                self.heuristics = self.heuristics_initial + random_plus
+            #     # heuristics_plus[cutoff:] = 0
+            #     randomness_ratio = 1.0  # 0: no randomness, 1: 100% randomness
+            #     cutoff_ratio = 1 - randomness_ratio
+            #     cutoff = int(cutoff_ratio * self.heuristics_initial.shape[0])
+            #     indices = np.random.choice(
+            #         self.heuristics_initial.shape[0], cutoff, replace=False
+            #     )
+            #     heuristics_plus[indices] = 0
 
-            # self.heuristics = self.heuristics_initial + np.random.rand(
-            #     *self.heuristics_initial.shape
-            # )
+            #     self.heuristics = self.heuristics_initial + heuristics_plus
+            # else:
+            #     random_plus = np.random.rand(*self.heuristics_initial.shape)
+            #     cutoff = int(
+            #         1.0 * self.heuristics_initial.shape[0]
+            #     )  # 0 : 0% randomness, 1: 100% randomness
+            #     random_plus[cutoff:] = 0
+            #     self.heuristics = self.heuristics_initial + random_plus
+
+            # # self.heuristics = self.heuristics_initial + np.random.rand(
+            # #     *self.heuristics_initial.shape
+            # # )
         print("Time to randomize heuristics: ", time.time() - time1)
         for i in range(self.num_of_agents):  # Find initial path for each agent
             astar = AStar(
@@ -419,6 +435,6 @@ class CBSSolver(object):
         print("Expanded nodes:  {}".format(self.num_of_expanded))
         print("Generated nodes: {}".format(self.num_of_generated))
 
-        print("Solution:")
-        for i in range(len(node["paths"])):
-            print("agent", i, ": ", node["paths"][i])
+        # print("Solution:")
+        # for i in range(len(node["paths"])):
+        #     print("agent", i, ": ", node["paths"][i])

@@ -71,8 +71,8 @@ def main(input_file_name, output_file_name, num_agents):
 
 if __name__ == "__main__":
     input_file_name = (
-        # "/mnt/Topics/Learning/MAPF/LocalHeuristics/map/random-32-32-10.map"
-        "/mnt/Topics/Learning/MAPF/LocalHeuristics/map/random-64-64-10.map"
+        "/mnt/Topics/Learning/MAPF/LocalHeuristics/map/random-32-32-10.map"
+        # "/mnt/Topics/Learning/MAPF/LocalHeuristics/map/random-64-64-10.map"
         # "/mnt/Topics/Learning/MAPF/LocalHeuristics/map/random-32-32-20.map"
         # "/mnt/Topics/Learning/MAPF/LocalHeuristics/map/Boston_0_256.map"
     )

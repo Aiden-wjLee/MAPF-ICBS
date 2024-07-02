@@ -6,3 +6,6 @@ test*
 *csv
 *.txt
 model
+
+*.png
+*.jpg

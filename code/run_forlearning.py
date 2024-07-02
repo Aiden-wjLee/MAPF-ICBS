@@ -1,13 +1,18 @@
 #!/usr/bin/python
 import argparse
 import glob
+import numpy as np
+from scipy import ndimage
+from PIL import Image
+import cv2
 from pathlib import Path
 from cbs_basic import CBSSolver  # original cbs with standard/disjoint splitting
 
 # cbs with different improvements
 from icbs_cardinal_bypass import ICBS_CB_Solver  # only cardinal dectection and bypass
 from icbs_complete import ICBS_Solver  # all improvements including MA-CBS
-from CollisionMap import CollisionMap
+from HPrimeMap import HPrimeMap
+from Voronoi import Voronoi
 
 from independent import IndependentSolver
 from prioritized import PrioritizedPlanningSolver
@@ -76,12 +81,23 @@ def import_mapf_instance(filename):
     return my_map, starts, goals
 
 
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ("yes", "true", "t", "y", "1"):
+        return True
+    elif v.lower() in ("no", "false", "f", "n", "0"):
+        return False
+    else:
+        raise argparse.ArgumentTypeError("Boolean value expected.")
+
+
 def get_parser():
     parser = argparse.ArgumentParser(description="Runs various MAPF algorithms")
     parser.add_argument(
         "--instance",
         type=str,
-        default=INSTANCE,
+        default=f"/mnt/Topics/Learning/MAPF/LocalHeuristics/MAPF-ICBS/code/instances/test_random-32-32-20_a20.txt",
         help="The name of the instance file(s)",
     )
     parser.add_argument(
@@ -104,57 +120,111 @@ def get_parser():
         + str(HLSOLVER),
     )
     parser.add_argument(
-        "--randomness",
-        type=str,
-        default="random",
+        "--h_prime_TF",
+        default="True",
+        type=str2bool,
         help="The randomness of the HL solver (one of: {random,biased}), defaults to random",
+    )
+    parser.add_argument(
+        "--sigma",
+        type=float,
+        default=1.3,
+    )
+    parser.add_argument(
+        "--map_name",
+        type=str,
+        default="random-32-32-10",
+    )
+    parser.add_argument(
+        "--agent_num",
+        type=int,
+        default=20,
+    )
+    parser.add_argument(
+        "--cost_of_map",
+        type=int,
+        default=0,
+    )
+    parser.add_argument(
+        "--approximated",
+        default="True",
+        type=str2bool,
+        help="Use the approximated collision map",
+    )
+    parser.add_argument(
+        "--voronoi_TF",
+        default="True",
+        type=str2bool,
+    )
+    parser.add_argument(
+        "--random_ratio",
+        type=float,
+        default=0.0,
+    )
+    parser.add_argument(
+        "--zero_ratio",
+        type=float,
+        default=0.0,
     )
     # parser.add_argument('--llsolver', type=str, default=LLSOLVER,
     #                     help='The solver to use (one of: {a_star,pea_star,epea_star}), defaults to ' + str(LLSOLVER))
     return parser
 
 
-def main(args):
-    txt_file_name = args.instance.split("/")[-1].split(".")[0]
+def main(args, instance):
+    txt_file_name = instance.split("/")[-1].split(".")[0]
     result_file = open(
-        f"/mnt/Topics/Learning/MAPF/LocalHeuristics/MAPF-ICBS/code/test_results/ \
-results_for_{txt_file_name}_{args.randomness}.txt",
+        f"/mnt/Topics/Learning/MAPF/LocalHeuristics/MAPF-ICBS/code/test_results/\
+results_{txt_file_name}_{str(args.h_prime_TF)[0]}.txt",
         "a",
         buffering=1,
     )
     # result_file = open("results.csv", "w", buffering=1)
-
     # node_results_file = open("nodes-cleaned.csv", "w", buffering=1)
 
-    nodes_gen_file_name = f"/mnt/Topics/Learning/MAPF/LocalHeuristics/MAPF-ICBS/code/test_results/ \
-nodes_gen_for_{txt_file_name}_{args.randomness}.csv"
-    nodes_exp_file_name = f"/mnt/Topics/Learning/MAPF/LocalHeuristics/MAPF-ICBS/code/test_results/ \
-nodes_exp_for_{txt_file_name}_{args.randomness}.csv"
-    nodes_gen_file = open(nodes_gen_file_name, "w", buffering=1)
-    nodes_exp_file = open(nodes_exp_file_name, "w", buffering=1)
+    #     nodes_gen_file_name = f"/mnt/Topics/Learning/MAPF/LocalHeuristics/MAPF-ICBS/code/test_results/ \
+    # nodes_gen_for_{txt_file_name}_{args.h_prime_TF}.csv"
+    #     nodes_exp_file_name = f"/mnt/Topics/Learning/MAPF/LocalHeuristics/MAPF-ICBS/code/test_results/ \
+    # nodes_exp_for_{txt_file_name}_{args.h_prime_TF}.csv"
+    #     nodes_gen_file = open(nodes_gen_file_name, "w", buffering=1)
+    #     nodes_exp_file = open(nodes_exp_file_name, "w", buffering=1)
 
     # if args.batch:
-
     #     input_instance = sorted(glob.glob("instances/test*"))
     # else:
-    input_instance = sorted(glob.glob(args.instance))
+    input_instance = sorted(glob.glob(instance))
     if len(input_instance) == 0:
-        raise BaseException(f"{INSTANCE} does not exist.")
+        raise BaseException(f"{instance} does not exist.")
     for file in input_instance:
-
         print("***Import an instance***")
-
         print(file)
         my_map, starts, goals = import_mapf_instance(file)
         print_mapf_instance(my_map, starts, goals)
 
         if args.hlsolver == "CBS":
-            print("***Run CBS***")
-            collision_map = CollisionMap(
-                my_map, starts, goals, agent_num, 1.3
-            ).get_collision_map()
+            start_time_for_collision_map = time.time()
+            if args.h_prime_TF:  # True
+                print("***Run CBS***")
+                h_prime_map = HPrimeMap(
+                    my_map,
+                    starts,
+                    goals,
+                    agent_num,
+                    args.sigma,
+                    args.approximated,
+                    args.voronoi_TF,
+                    args.random_ratio,
+                    args.zero_ratio,
+                ).get_collision_map()
 
-            cbs = CBSSolver(my_map, starts, goals, args.randomness, collision_map)
+            else:
+                h_prime_map = np.zeros(
+                    (agent_num, np.array(my_map).shape[0], np.array(my_map).shape[1])
+                )
+
+            time_for_collision_map = time.time() - start_time_for_collision_map
+            # ==================================================================================================
+            cbs = CBSSolver(my_map, starts, goals, args.h_prime_TF, h_prime_map)
             # solution = cbs.find_solution(args.disjoint)
 
             # if solution is not None:
@@ -182,13 +252,13 @@ nodes_exp_for_{txt_file_name}_{args.randomness}.csv"
 
         cost = get_sum_of_cost(paths)
         result_file.write(
-            "file{}, \ncost: {} nodes_gen: {} nodes_exp: {}\n".format(
-                file, cost, nodes_gen, nodes_exp
+            "file{}, \ncost: {} nodes_gen: {} nodes_exp: {}, cmap generate: {}\n".format(
+                file, cost, nodes_gen, nodes_exp, time_for_collision_map
             )
         )
 
-        nodes_gen_file.write("{},{}\n".format(file, nodes_gen))
-        nodes_exp_file.write("{},{}\n".format(file, nodes_exp))
+        # nodes_gen_file.write("{},{}\n".format(file, nodes_gen))
+        # nodes_exp_file.write("{},{}\n".format(file, nodes_exp))
 
         if not args.batch:
             print("***Test paths on a simulation***")
@@ -204,34 +274,49 @@ if __name__ == "__main__":
     HLSOLVER = "CBS"
     LLSOLVER = "a_star"
 
-    # map_name = "random-32-32-10"
-    # map_name = "random-32-32-20"
-    map_name = "random-64-64-10"
-    # map_name = "Boston_0_256"
-    cost_of_map = 0  # 1906  # 0: normal, <0 : cost of map
-
-    agent_num = 60
-
-    INSTANCE = f"/mnt/Topics/Learning/MAPF/LocalHeuristics/MAPF-ICBS/code/instances/test_a{agent_num}.txt"
-    INSTANCE = f"/mnt/Topics/Learning/MAPF/LocalHeuristics/MAPF-ICBS/code/instances/test_{map_name}_a{agent_num}.txt"
-    if cost_of_map > 0:
-        INSTANCE = f"/mnt/Topics/Learning/MAPF/LocalHeuristics/MAPF-ICBS/code/instances/test_{map_name}_a{agent_num}_c{cost_of_map}.txt"
-
     parser = get_parser()
     args = parser.parse_args()
+
+    # ===================================================================================================
     args.batch = True  # simulation True: Simx
-    args.randomness = "random"
+    # args.randomness = "random"
+    # args.sigma = 3.0  # 1.3
 
+    cost_of_map = args.cost_of_map  # 1906  # 0: normal, <0 : cost of map
+    # map_name = "random-32-32-10"
+    # map_name = "random-32-32-20"
+    # map_name = "random-64-64-10"
+    # map_name = "Boston_0_256"
+    map_name = args.map_name
+
+    # agent_num = 40
+    agent_num = args.agent_num
+    print("agent_num:", agent_num)
+
+    instance = f"/mnt/Topics/Learning/MAPF/LocalHeuristics/MAPF-ICBS/code/instances/test_a{agent_num}.txt"
+    instance = f"/mnt/Topics/Learning/MAPF/LocalHeuristics/MAPF-ICBS/code/instances/test_{map_name}_a{agent_num}.txt"
+    if cost_of_map > 0:
+        instance = f"/mnt/Topics/Learning/MAPF/LocalHeuristics/MAPF-ICBS/code/instances/test_{map_name}_a{agent_num}_c{cost_of_map}.txt"
+    # ===================================================================================================
     start_time = time.time()
-    main(args)
+    main(args, instance)
     end_time = time.time()
-    print(f"{args.randomness}에서 소요 시간:", end_time - start_time, "초")
+    print(
+        f"[h_prime_TF: {args.h_prime_TF}], {instance}에서 소요 시간:",
+        end_time - start_time,
+        "초",
+    )
 
-    txt_file_name = args.instance.split("/")[-1].split(".")[0]
+    txt_file_name = instance.split("/")[-1].split(".")[0]
     result_file = open(
-        f"/mnt/Topics/Learning/MAPF/LocalHeuristics/MAPF-ICBS/code/test_results/ \
-results_for_{txt_file_name}_{args.randomness}.txt",
+        f"/mnt/Topics/Learning/MAPF/LocalHeuristics/MAPF-ICBS/code/test_results/\
+results_{txt_file_name}_{str(args.h_prime_TF)[0]}.txt",
         "a",
         buffering=1,
     )
-    result_file.write("소요 시간: {} 초\n\n".format(end_time - start_time))
+    result_file.write(
+        f"h_pri_TF: {args.h_prime_TF}, approx: {args.approximated}, voro: {args.voronoi_TF}, rand_ratio: {args.random_ratio}, zero: {args.zero_ratio}\n"
+    )
+    result_file.write(
+        "sigma: {}, 소요 시간: {} 초\n\n".format(args.sigma, end_time - start_time)
+    )
